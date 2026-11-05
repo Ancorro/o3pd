@@ -26,27 +26,33 @@ def evaluate(model, lora=None, benchmarks=("hmmt25", "aime24", "aime25"), seeds=
     out = {"model": model, "lora": lora, "thinking": thinking, "max_tokens": max_tokens, "seeds": list(seeds),
            "n_per_seed": n_per_seed, "temperature": temperature, "top_p": top_p, "benchmarks": {}}
     t0 = time.time()
+    # One generate call over every benchmark, problem and seed, so vLLM can batch all of it.
+    jobs, prompts, params = [], [], []
     for b in benchmarks:
-        probs = load_benchmark(b)[:limit]
-        prompts = [tok.apply_chat_template([{"role": "user", "content": PROMPT.format(problem=p["problem"])}],
+        for i, p in enumerate(load_benchmark(b)[:limit]):
+            text = tok.apply_chat_template([{"role": "user", "content": PROMPT.format(problem=p["problem"])}],
                                            tokenize=False, add_generation_prompt=True, enable_thinking=thinking)
-                   for p in probs]
-        correct = [[] for _ in probs]
-        lengths, truncated = [], 0
-        for s in seeds:
-            sp = SamplingParams(n=n_per_seed, temperature=temperature, top_p=top_p, top_k=-1, min_p=0.0,
-                                max_tokens=max_tokens, seed=s)
-            res = llm.generate(prompts, sp, lora_request=lora_req)
-            for i, r in enumerate(res):
-                for o in r.outputs:
-                    correct[i].append(is_correct(o.text, probs[i]["answer"]))
-                    lengths.append(len(o.token_ids))
-                    truncated += o.finish_reason == "length"
+            for s in seeds:
+                jobs.append((b, i, p["answer"]))
+                prompts.append(text)
+                params.append(SamplingParams(n=n_per_seed, temperature=temperature, top_p=top_p, top_k=-1,
+                                             min_p=0.0, max_tokens=max_tokens, seed=s))
+    res = llm.generate(prompts, params, lora_request=lora_req)
+    per = {}
+    for (b, i, ans), r in zip(jobs, res):
+        d = per.setdefault(b, {"correct": {}, "lengths": [], "truncated": 0})
+        for o in r.outputs:
+            d["correct"].setdefault(i, []).append(is_correct(o.text, ans))
+            d["lengths"].append(len(o.token_ids))
+            d["truncated"] += o.finish_reason == "length"
+    for b, d in per.items():
+        correct = [d["correct"][i] for i in sorted(d["correct"])]
         acc = 100 * sum(sum(c) for c in correct) / sum(len(c) for c in correct)
         out["benchmarks"][b] = {"acc": acc, "per_problem": [sum(c) / len(c) for c in correct],
-                                "mean_len": sum(lengths) / len(lengths), "truncated": truncated,
+                                "mean_len": sum(d["lengths"]) / len(d["lengths"]), "truncated": d["truncated"],
                                 "n": sum(len(c) for c in correct)}
-        print(f"{b}: {acc:.1f}  (mean len {out['benchmarks'][b]['mean_len']:.0f}, truncated {truncated})", flush=True)
+        print(f"{b}: {acc:.1f}  (mean len {out['benchmarks'][b]['mean_len']:.0f}, truncated {d['truncated']})",
+              flush=True)
     out["average"] = sum(v["acc"] for v in out["benchmarks"].values()) / len(out["benchmarks"])
     out["seconds"] = time.time() - t0
     print(f"average: {out['average']:.1f}  ({out['seconds'] / 60:.1f} min)", flush=True)
