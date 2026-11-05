@@ -1,5 +1,7 @@
 # o3pd
 
+*AI-sourced: assisted by AI agents.*
+
 An independent reproduction of **"Order-Only On-Policy Distillation"** (O3PD) by Guangzeng Han, Yu Wu and
 Xiaolei Huang ([arXiv:2611.02112](https://arxiv.org/abs/2611.02112), 2026). The authors released no code; everything
 here was written from the paper. It is not affiliated with the authors.
