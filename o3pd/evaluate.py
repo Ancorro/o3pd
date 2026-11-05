@@ -69,9 +69,10 @@ def main():
     ap.add_argument("--n-per-seed", type=int, default=4)
     ap.add_argument("--seeds", default="41,42,43")
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--benchmarks", default="hmmt25,aime24,aime25")
     ap.add_argument("--gpu-mem", type=float, default=0.9)
     a = ap.parse_args()
-    r = evaluate(a.model, a.lora, thinking=not a.no_thinking, max_tokens=a.max_tokens, n_per_seed=a.n_per_seed,
+    r = evaluate(a.model, a.lora, benchmarks=tuple(a.benchmarks.split(",")), thinking=not a.no_thinking, max_tokens=a.max_tokens, n_per_seed=a.n_per_seed,
                  seeds=tuple(int(s) for s in a.seeds.split(",")), limit=a.limit, gpu_mem=a.gpu_mem,
                  max_model_len=max(a.max_tokens + 2048, 4096))
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)

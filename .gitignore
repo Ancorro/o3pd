@@ -12,3 +12,4 @@ runs/
 data/*.jsonl
 results/eval/probe_*
 __pycache__/
+logs/
