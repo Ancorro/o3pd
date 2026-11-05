@@ -1,0 +1,7 @@
+#!/bin/sh
+# Blocks secrets, private words and other emails so this repo stays safe to publish (README "Repo rules").
+# The guard lives outside the repo; its path is stored in this clone's local git config, never in a commit.
+guard=$(git config --get guard.script)
+[ -n "$guard" ] && [ -x "$guard" ] && exec "$guard" staged
+echo "pre-commit: commit guard not set up in this clone; rerun the project setup script" >&2
+exit 1

@@ -1,0 +1,14 @@
+private/
+.env
+.env.*
+!.env.example
+node_modules/
+.venv/
+venv/
+__pycache__/
+build/
+dist/
+runs/
+data/*.jsonl
+results/eval/probe_*
+__pycache__/
